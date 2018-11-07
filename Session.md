@@ -1,14 +1,15 @@
 # 一.创建会话
 ## 1.创建一个会话并运行
 ```python
-sess1 = tf.Session()
+sess1 = tf.Session(graph = g1)
 with sess1.as_default():
     tensor.eval()
 ```
 或
 ```python
-with tf.Session() as sess:
+with tf.Session(graph = g1) as sess:
     sess.run(tensor)
+    sess.run([tensor1, tensor2...])
 ```
 所有节点的运行都会返回一个tensor，该tensor是节点输出的结果。在python中是numpy.ndarray类型的数据。我们可以print查看结果，或者用一个变量名记录。用变量名记录后，可以对其进行其它的不属于tf的运算。达到tf和py其余库混用的效果。
 # 二.会话的深入理解以及高级用法
