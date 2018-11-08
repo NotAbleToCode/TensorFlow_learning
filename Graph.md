@@ -24,8 +24,8 @@ name和dtype可以缺省。
 ```
 ```python
 tf.Variable()
-a = tf.Variable([1, 2], name = 'a', dtype = tf.float32)
-name和dtype可以缺省。
+a = tf.Variable([1, 2], name = 'a')
+name可以缺省。注意Variable是可变类型的。
 注意定义变量后，要用tf.global_variables_initializer()来进行初始化操作。
 ```
 ```python
@@ -60,4 +60,41 @@ with tf.Session(graph = g1) as sess:
 我们叙述一下代码过程，问题便清楚了。当代码执行到c = tf.matmul(a,b)时，c指向了节点tf.matmul(a,b)，注意，此时tf已经在g1图中为tf.matmul(a,b)分配了唯一一个name属性了，这里a和b的作用相当于一个指针，来连接。当执行到c = a * c时，tf又在g1图中生成了一个a指向的节点和c指向的节点的相乘运算节点，并分配了唯一一个name属性来标识，接着=表示c指向它。  
 这里容易让人感到困惑的地方是，在py的运算习惯中，对于c = a * c，c之前的值会被当做垃圾回收掉。但是这里c之前指向的节点不会被回收，只要它被定义了，那它便一直存在于图中，不管有没有py的变量指向它。当然，如果没有变量指向它，就不能简单用sess.run(变量名)来看这个节点的输出值了。  
 总之，tf的语法虽然和py不同，但py作为环境，tf还是要服从于py的。严格来说，并不能说tf自成语法，tf无非还是一些python的函数，类等等。也是顺序执行的。只是，tf的函数，类的行为确实和一般的函数，类有所不同。比如计算节点的定义其实就是函数的调用执行，调用的结果就是在计算图上增加节点，并返回该节点的引用。而计算图由g1 = tf.Graph()定义，是一个类。函数可以更改类中的图属性。这便是增加节点的实际实现方式。  
-所以，虽然我们在抽象的层面上理解tf可能更直观，更有导向性。但在写代码时，我们还是要想着函数调用，类的初始化等等这些基本的东西来写，这样更严谨，而且不会引起混淆。
+所以，虽然我们在抽象的层面上理解tf可能更直观，更有导向性。但在写代码时，我们还是要想着函数调用，类的初始化等等这些基本的东西来写，这样更严谨，而且不会引起混淆。  
+# 四.高级用法
+## 1.get_variable和variable域的使用
+使用样例
+```python
+#通过tf.variable_scope函数控制tf.get_variable函数来获取以及创建过的变量
+with tf.variable_scope("zyy"):#zyy的命名空间
+        #zyy的命名空间内创建名字为v的变量
+        v=tf.get_variable("v",[1],initializer=tf.constant_initializer(1.0))  
+with tf.variable_scope("zyy"):
+        #通过tf.get_variable函数创建v的变量，则会失败，由于在zyy空间中已经生成了一个v的变量
+        v=tf.get_variable("v",[1])  
+with tf.variable_scope("zyy",reuse=True):
+      v1=tf.get_variable("v",[1])
+print v==v1   #输出为True
+```
+官方样本
+```python
+get_variable(name, shape=None, dtype=None, initializer=None, regularizer=None, trainable=True, collections=None, caching_device=None, partitioner=None, validate_shape=True, use_resource=None, custom_getter
+=None)
+If initializer is `None` (the default), the default initializer passed in the variable scope will be used. If that one is `None` too, `glorot_uniform_initializer` will be used. The initializer can also be a Tensor, in which case the variable is initialized to this value and shape.
+......
+```
+通过以上使用样例及官方样本，可以总结如下：  
+当tf.get_variable用于创建变量时，则与tf.Variable的功能基本相同。但tf.get_variable函数，变量名称是一个必填的参数，它会根据变量名称去创建或者获取变量。二者返回的都是<class 'tensorflow.python.ops.variables.Variable'>类型。可以理解为tf.get_variable是封装的tf.Variable，所以推荐使用tf.get_variable。  
+tf.get_variable可以选择初始化方法，但如果用tf.Variable，则还需要手动实现。  
+初始化方法大概有如下几种：  
+tf.constant_initializer：常量初始化函数  
+tf.random_normal_initializer：正态分布  
+tf.truncated_normal_initializer：截取的正态分布  
+tf.random_uniform_initializer：均匀分布  
+tf.zeros_initializer：全部是0  
+tf.ones_initializer：全是1  
+tf.uniform_unit_scaling_initializer：满足均匀分布，但不影响输出数量级的随机值  
+并且tf.variable_scope在reuse=True的情况下可以获取已经创建过的变量。  
+如果tf.variable_scope函数使用参数reuse=False（默认为False）创建上下文管理器，则tf.get_variable函数可以创建新的变量。但不可以创建已经存在的变量即为同名的变量。
+
+
